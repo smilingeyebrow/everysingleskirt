@@ -486,7 +486,7 @@
     <span class="page-meta" id="page-meta"></span>
   </div>
   <div class="search-wrap">
-    <input class="search-input" id="search-input" type="text" placeholder="Search products and brands… (Enter)" />
+    <input class="search-input" id="search-input" type="text" placeholder="looking for something specific?" />
     <button class="search-clear" id="search-clear">×</button>
   </div>
   <div class="status-bar" id="status-bar">Loading...</div>
@@ -623,7 +623,7 @@ async function fetchBrand(brand) {
         if (!inStock) continue;
         const variant = p.variants?.find(v => v.available) || p.variants?.[0];
         const onSale = variant?.compare_at_price && parseFloat(variant.compare_at_price) > parseFloat(variant.price);
-        const category = guessCategory(p.title, p.product_type) === 'other' ? 'home' : guessCategory(p.title, p.product_type);
+        const searchText = [p.title, brand.name, p.product_type, (p.tags||[]).join(' '), (p.body_html||'').replace(/<[^>]+>/g,''), p.variants?.map(v=>v.title).join(' ')].join(' ').toLowerCase();
         products.push({
           id: `${brand.id}-${p.id}`,
           brand: brand.name, brandId: brand.id,
@@ -631,7 +631,7 @@ async function fetchBrand(brand) {
           originalPrice: onSale ? formatPrice(variant.compare_at_price) : null,
           image: hiRes(p.images?.[0]?.src),
           link: `${brand.url}/products/${p.handle}`,
-          category: 'home', sizeFiltered: false, onSale,
+          category: 'home', sizeFiltered: false, onSale, searchText,
         });
         continue;
       }
@@ -649,6 +649,7 @@ async function fetchBrand(brand) {
       if (category === 'accessories') {
         const variant = p.variants?.find(v => v.available) || p.variants?.[0];
         const onSale = variant?.compare_at_price && parseFloat(variant.compare_at_price) > parseFloat(variant.price);
+        const searchText = [p.title, brand.name, p.product_type, (p.tags||[]).join(' '), (p.body_html||'').replace(/<[^>]+>/g,''), p.variants?.map(v=>v.title).join(' ')].join(' ').toLowerCase();
         products.push({
           id: `${brand.id}-${p.id}`,
           brand: brand.name, brandId: brand.id,
@@ -656,7 +657,7 @@ async function fetchBrand(brand) {
           originalPrice: onSale ? formatPrice(variant.compare_at_price) : null,
           image: hiRes(p.images?.[0]?.src),
           link: `${brand.url}/products/${p.handle}`,
-          category, sizeFiltered: false, onSale,
+          category, sizeFiltered: false, onSale, searchText,
         });
         continue;
       }
@@ -670,6 +671,7 @@ async function fetchBrand(brand) {
         if (!shoeMatch) continue;
         const variant = p.variants?.find(v => v.available && (v.title || '').replace(/[^0-9.]/g, '') === USER_SHOE_SIZE) || p.variants?.[0];
         const onSale = variant?.compare_at_price && parseFloat(variant.compare_at_price) > parseFloat(variant.price);
+        const searchText = [p.title, brand.name, p.product_type, (p.tags||[]).join(' '), (p.body_html||'').replace(/<[^>]+>/g,''), p.variants?.map(v=>v.title).join(' ')].join(' ').toLowerCase();
         products.push({
           id: `${brand.id}-${p.id}`,
           brand: brand.name, brandId: brand.id,
@@ -677,7 +679,7 @@ async function fetchBrand(brand) {
           originalPrice: onSale ? formatPrice(variant.compare_at_price) : null,
           image: hiRes(p.images?.[0]?.src),
           link: `${brand.url}/products/${p.handle}`,
-          category, sizeFiltered: true, onSale,
+          category, sizeFiltered: true, onSale, searchText,
         });
         continue;
       }
@@ -702,6 +704,7 @@ async function fetchBrand(brand) {
       if (!sizeMatch) continue;
       const variant = p.variants?.find(v => sizeMatches(v.title || '') && v.available) || p.variants?.[0];
       const onSale = variant?.compare_at_price && parseFloat(variant.compare_at_price) > parseFloat(variant.price);
+      const searchText = [p.title, brand.name, p.product_type, (p.tags||[]).join(' '), (p.body_html||'').replace(/<[^>]+>/g,''), p.variants?.map(v=>v.title).join(' ')].join(' ').toLowerCase();
       products.push({
         id: `${brand.id}-${p.id}`,
         brand: brand.name, brandId: brand.id,
@@ -709,7 +712,7 @@ async function fetchBrand(brand) {
         originalPrice: onSale ? formatPrice(variant.compare_at_price) : null,
         image: hiRes(p.images?.[0]?.src),
         link: `${brand.url}/products/${p.handle}`,
-        category, sizeFiltered: true, onSale,
+        category, sizeFiltered: true, onSale, searchText,
       });
     }
     return products;
@@ -742,10 +745,11 @@ function getFilteredProducts(view) {
   else products = allProducts.filter(p => !hiddenIds.has(p.id) && p.category === view);
 
   if (searchQuery) {
-    const q = searchQuery.toLowerCase();
-    products = products.filter(p =>
-      p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q)
-    );
+    const words = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    products = products.filter(p => {
+      const text = p.searchText || (p.name + ' ' + p.brand).toLowerCase();
+      return words.every(w => text.includes(w));
+    });
   }
   return products;
 }
