@@ -352,6 +352,8 @@
 <script>
 const USER_SIZE = 'M';
 const USER_SHOE_SIZE = '7';
+const USER_TOPS_NUMERIC = ['6', '8'];
+const USER_BOTTOMS_NUMERIC = ['29'];
 const MENS_KEYWORDS = ['mens', "men's", ' men ', 'menswear', 'man ', 'for men'];
 
 const BRANDS = [
@@ -462,16 +464,25 @@ async function fetchBrand(brand) {
         continue;
       }
 
-      // Apparel: match on USER_SIZE (L)
-      const sizeMatch = p.variants?.some(v => {
-        const title = (v.title || '').toUpperCase();
-        return (title === USER_SIZE || title.includes(`/ ${USER_SIZE}`) || title.startsWith(`${USER_SIZE} /`) || title.startsWith(`${USER_SIZE}/`)) && v.available;
-      });
+      // High rise filter for bottoms
+      if (category === 'bottoms' && productText.includes('high rise')) continue;
+
+      // Apparel: match on USER_SIZE plus numeric sizes per category
+      const extraSizes = category === 'tops' ? USER_TOPS_NUMERIC
+                       : category === 'bottoms' ? USER_BOTTOMS_NUMERIC
+                       : [];
+
+      function sizeMatches(variantTitle) {
+        const t = variantTitle.toUpperCase();
+        const tRaw = variantTitle.trim();
+        if ((t === USER_SIZE || t.includes(`/ ${USER_SIZE}`) || t.startsWith(`${USER_SIZE} /`) || t.startsWith(`${USER_SIZE}/`))) return true;
+        if (extraSizes.some(s => tRaw === s || t.includes(`/ ${s}`) || t.startsWith(`${s} /`) || t.startsWith(`${s}/`) || t === s.toUpperCase())) return true;
+        return false;
+      }
+
+      const sizeMatch = p.variants?.some(v => sizeMatches(v.title || '') && v.available);
       if (!sizeMatch) continue;
-      const variant = p.variants?.find(v => {
-        const t = (v.title || '').toUpperCase();
-        return (t === USER_SIZE || t.includes(`/ ${USER_SIZE}`) || t.startsWith(`${USER_SIZE} /`) || t.startsWith(`${USER_SIZE}/`)) && v.available;
-      }) || p.variants?.[0];
+      const variant = p.variants?.find(v => sizeMatches(v.title || '') && v.available) || p.variants?.[0];
       const onSale = variant?.compare_at_price && parseFloat(variant.compare_at_price) > parseFloat(variant.price);
       products.push({
         id: `${brand.id}-${p.id}`,
