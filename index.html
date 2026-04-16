@@ -118,6 +118,41 @@
     letter-spacing: 0.04em;
   }
 
+  /* SEARCH */
+  .search-wrap {
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .search-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 9px 36px 9px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    letter-spacing: 0.03em;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-input::placeholder { color: var(--muted); }
+  .search-input:focus { border-color: var(--text); }
+  .search-clear {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    color: var(--muted);
+    cursor: pointer;
+    display: none;
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+  }
+  .search-clear.visible { display: block; }
+
   /* STATUS */
   .status-bar {
     font-size: 11px;
@@ -290,6 +325,98 @@
   .brand-badge.live { border-color: #B8D4B0; color: #4A7A42; background: #F2F8F1; }
   .brand-badge.all { border-color: #D4C8A0; color: #7A6A30; background: #FAF6E8; }
 
+  /* GROUPS */
+  .group-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(245,244,240,0.92);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.15s, transform 0.15s;
+    backdrop-filter: blur(4px);
+  }
+  .group-btn:hover { background: var(--surface); transform: scale(1.08); }
+
+  .group-popover {
+    position: fixed;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 12px;
+    z-index: 500;
+    width: 200px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+  .group-popover.hidden { display: none; }
+  .group-popover-title {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .group-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text);
+    background: none;
+    border: none;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    border-radius: 2px;
+  }
+  .group-option:hover { background: var(--bg); }
+  .group-option.active-group { color: var(--muted); }
+  .group-new {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+  }
+  .group-new input {
+    flex: 1;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+  }
+  .group-new input:focus { border-color: var(--text); }
+  .group-new button {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    background: var(--text);
+    color: var(--bg);
+    cursor: pointer;
+  }
+  .nav-group-item { position: relative; }
+  .nav-group-delete {
+    float: right;
+    font-size: 10px;
+    color: var(--muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin-top: 1px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .nav-group-item:hover .nav-group-delete { opacity: 1; }
+
   /* TOAST */
   .toast {
     position: fixed;
@@ -338,12 +465,29 @@
     <a href="#" data-view="saved">Saved <span class="nav-count" id="saved-count"></span></a>
     <a href="#" data-view="brands">Brands</a>
   </div>
+  <div class="nav-section" id="groups-nav-section" style="display:none;">
+    <span class="nav-label">Groups</span>
+    <div id="groups-nav-list"></div>
+  </div>
 </nav>
+
+<div class="group-popover hidden" id="group-popover">
+  <div class="group-popover-title">Add to group</div>
+  <div id="group-options-list"></div>
+  <div class="group-new">
+    <input type="text" id="group-new-input" placeholder="New group…" maxlength="30" />
+    <button id="group-new-btn">+</button>
+  </div>
+</div>
 
 <main id="main">
   <div class="page-header">
     <h1 class="page-title" id="page-title">All</h1>
     <span class="page-meta" id="page-meta"></span>
+  </div>
+  <div class="search-wrap">
+    <input class="search-input" id="search-input" type="text" placeholder="Search products and brands… (Enter)" />
+    <button class="search-clear" id="search-clear">×</button>
   </div>
   <div class="status-bar" id="status-bar">Loading...</div>
   <div class="grid" id="grid"></div>
@@ -402,12 +546,56 @@ function formatPrice(price) {
 let allProducts = [];
 let savedIds = new Set(JSON.parse(localStorage.getItem('saved') || '[]'));
 let hiddenIds = new Set(JSON.parse(localStorage.getItem('hidden') || '[]'));
+let groups = JSON.parse(localStorage.getItem('groups') || '{}'); // { groupName: [productId, ...] }
 let currentView = 'all';
+let searchQuery = '';
+let activePopoverProductId = null;
 
 function savePersist() {
   localStorage.setItem('saved', JSON.stringify([...savedIds]));
   localStorage.setItem('hidden', JSON.stringify([...hiddenIds]));
+  localStorage.setItem('groups', JSON.stringify(groups));
   document.getElementById('saved-count').textContent = savedIds.size > 0 ? savedIds.size : '';
+  renderGroupsNav();
+}
+
+function renderGroupsNav() {
+  const section = document.getElementById('groups-nav-section');
+  const list = document.getElementById('groups-nav-list');
+  const groupNames = Object.keys(groups);
+  section.style.display = groupNames.length > 0 ? 'block' : 'none';
+  list.innerHTML = groupNames.map(name => `
+    <div class="nav-group-item">
+      <a href="#" data-view="group:${name}">${name} <span class="nav-count">${(groups[name]||[]).length}</span></a>
+      <button class="nav-group-delete" data-group="${name}" title="Delete group">×</button>
+    </div>
+  `).join('');
+  list.querySelectorAll('a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelectorAll('nav a').forEach(x => x.classList.remove('active'));
+      a.classList.add('active');
+      currentView = a.dataset.view;
+      searchQuery = '';
+      document.getElementById('search-input').value = '';
+      document.getElementById('search-clear').classList.remove('visible');
+      document.getElementById('grid').className = 'grid';
+      render();
+      document.getElementById('main').scrollTo(0, 0);
+    });
+  });
+  list.querySelectorAll('.nav-group-delete').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const name = btn.dataset.group;
+      if (confirm(`Delete group "${name}"?`)) {
+        delete groups[name];
+        if (currentView === `group:${name}`) currentView = 'saved';
+        savePersist();
+        render();
+      }
+    });
+  });
 }
 
 function hiRes(src) {
@@ -542,10 +730,24 @@ async function loadAll() {
 }
 
 function getFilteredProducts(view) {
-  if (view === 'saved') return allProducts.filter(p => savedIds.has(p.id));
-  if (view === 'all') return allProducts.filter(p => !hiddenIds.has(p.id));
-  if (view === 'other') return allProducts.filter(p => !hiddenIds.has(p.id) && p.category === 'other');
-  return allProducts.filter(p => !hiddenIds.has(p.id) && p.category === view);
+  let products;
+  if (view === 'saved') products = allProducts.filter(p => savedIds.has(p.id));
+  else if (view === 'all') products = allProducts.filter(p => !hiddenIds.has(p.id));
+  else if (view === 'other') products = allProducts.filter(p => !hiddenIds.has(p.id) && p.category === 'other');
+  else if (view.startsWith('group:')) {
+    const name = view.slice(6);
+    const ids = new Set(groups[name] || []);
+    products = allProducts.filter(p => ids.has(p.id));
+  }
+  else products = allProducts.filter(p => !hiddenIds.has(p.id) && p.category === view);
+
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    products = products.filter(p =>
+      p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q)
+    );
+  }
+  return products;
 }
 
 function render() {
@@ -559,7 +761,9 @@ function render() {
   }
 
   const products = getFilteredProducts(currentView);
-  const label = currentView === 'all' ? 'All' : currentView.charAt(0).toUpperCase() + currentView.slice(1);
+  const label = currentView === 'all' ? 'All'
+    : currentView.startsWith('group:') ? currentView.slice(6)
+    : currentView.charAt(0).toUpperCase() + currentView.slice(1);
   title.textContent = label;
   meta.textContent = products.length + ' items';
 
@@ -568,6 +772,7 @@ function render() {
     return;
   }
 
+  const isSavedView = currentView === 'saved' || currentView.startsWith('group:');
   grid.innerHTML = products.map(p => {
     const isSaved = savedIds.has(p.id);
     return `
@@ -578,6 +783,7 @@ function render() {
           : `<div class="card-img-placeholder">${p.brand}</div>`}
         <div class="card-actions">
           <button class="card-btn save-btn ${isSaved ? 'saved' : ''}" data-id="${p.id}" title="Save">♥</button>
+          ${isSavedView ? `<button class="card-btn group-btn" data-id="${p.id}" title="Add to group">⊕</button>` : ''}
           <button class="card-btn hide-btn" data-id="${p.id}" title="Hide">×</button>
         </div>
       </div>
@@ -613,7 +819,84 @@ function render() {
       render();
     });
   });
+
+  grid.querySelectorAll('.group-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      activePopoverProductId = id;
+      showGroupPopover(btn);
+    });
+  });
 }
+
+function showGroupPopover(anchor) {
+  const popover = document.getElementById('group-popover');
+  const list = document.getElementById('group-options-list');
+  const groupNames = Object.keys(groups);
+
+  list.innerHTML = groupNames.length === 0
+    ? `<div style="font-size:11px;color:var(--muted);padding:4px 8px;">No groups yet</div>`
+    : groupNames.map(name => {
+        const inGroup = (groups[name] || []).includes(activePopoverProductId);
+        return `<button class="group-option ${inGroup ? 'active-group' : ''}" data-group="${name}">
+          ${inGroup ? '✓ ' : ''}${name}
+        </button>`;
+      }).join('');
+
+  list.querySelectorAll('.group-option').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const name = btn.dataset.group;
+      if (!groups[name]) groups[name] = [];
+      const idx = groups[name].indexOf(activePopoverProductId);
+      if (idx === -1) {
+        groups[name].push(activePopoverProductId);
+        showToast(`Added to ${name}`);
+      } else {
+        groups[name].splice(idx, 1);
+        showToast(`Removed from ${name}`);
+      }
+      savePersist();
+      closeGroupPopover();
+    });
+  });
+
+  const rect = anchor.getBoundingClientRect();
+  popover.style.top = (rect.bottom + 6) + 'px';
+  popover.style.left = Math.max(8, rect.left - 160) + 'px';
+  popover.classList.remove('hidden');
+}
+
+function closeGroupPopover() {
+  document.getElementById('group-popover').classList.add('hidden');
+  activePopoverProductId = null;
+}
+
+document.getElementById('group-new-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  const input = document.getElementById('group-new-input');
+  const name = input.value.trim();
+  if (!name) return;
+  if (!groups[name]) groups[name] = [];
+  if (activePopoverProductId) groups[name].push(activePopoverProductId);
+  input.value = '';
+  savePersist();
+  showToast(`Added to ${name}`);
+  closeGroupPopover();
+});
+
+document.getElementById('group-new-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('group-new-btn').click();
+  e.stopPropagation();
+});
+
+document.addEventListener('click', e => {
+  const popover = document.getElementById('group-popover');
+  if (!popover.classList.contains('hidden') && !popover.contains(e.target)) {
+    closeGroupPopover();
+  }
+});
 
 function renderBrands() {
   const main = document.getElementById('main');
@@ -656,10 +939,31 @@ document.querySelectorAll('nav a').forEach(a => {
     document.querySelectorAll('nav a').forEach(x => x.classList.remove('active'));
     a.classList.add('active');
     currentView = a.dataset.view;
+    searchQuery = '';
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-clear').classList.remove('visible');
     document.getElementById('grid').className = 'grid';
     render();
     document.getElementById('main').scrollTo(0, 0);
   });
+});
+
+const searchInput = document.getElementById('search-input');
+const searchClear = document.getElementById('search-clear');
+
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    searchQuery = searchInput.value.trim();
+    searchClear.classList.toggle('visible', searchQuery.length > 0);
+    render();
+  }
+});
+
+searchClear.addEventListener('click', () => {
+  searchQuery = '';
+  searchInput.value = '';
+  searchClear.classList.remove('visible');
+  render();
 });
 
 savePersist();
