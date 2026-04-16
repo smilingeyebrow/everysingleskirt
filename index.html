@@ -540,7 +540,7 @@ function render() {
   grid.innerHTML = products.map(p => {
     const isSaved = savedIds.has(p.id);
     return `
-    <div class="card" data-id="${p.id}">
+    <div class="card" data-id="${p.id}" onclick="openLink('${p.link}')" style="cursor:pointer;">
       <div class="card-img-wrap">
         ${p.image
           ? `<img src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.parentNode.innerHTML='<div class=card-img-placeholder>${p.brand}</div>'">`
@@ -550,13 +550,11 @@ function render() {
           <button class="card-btn hide-btn" data-id="${p.id}" title="Hide">×</button>
         </div>
       </div>
-      <a href="${p.link}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;">
-        <div class="card-body">
-          <div class="card-brand">${p.brand}</div>
-          <div class="card-name">${p.name}</div>
-          <div class="card-price ${p.onSale ? 'on-sale' : ''}">${p.price}</div>
-        </div>
-      </a>
+      <div class="card-body">
+        <div class="card-brand">${p.brand}</div>
+        <div class="card-name">${p.name}</div>
+        <div class="card-price ${p.onSale ? 'on-sale' : ''}">${p.price}</div>
+      </div>
     </div>`;
   }).join('');
 
@@ -605,6 +603,10 @@ function renderBrands() {
       ${badge}
     </div>`;
   }).join('');
+}
+
+function openLink(url) {
+  window.open(url, '_blank', 'noopener');
 }
 
 function showToast(msg) {
