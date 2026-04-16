@@ -195,10 +195,8 @@
     text-overflow: ellipsis;
   }
 
-  .card-price {
-    font-size: 11px;
-    color: var(--muted);
-  }
+  .card-price { font-size: 11px; color: var(--muted); }
+  .card-price.on-sale { color: #9B3A2A; }
 
   /* CARD ACTIONS */
   .card-actions {
@@ -330,6 +328,7 @@
     <a href="#" data-view="outerwear">Outerwear</a>
     <a href="#" data-view="shoes">Shoes</a>
     <a href="#" data-view="accessories">Accessories</a>
+    <a href="#" data-view="other">Other</a>
   </div>
 
   <div class="nav-section">
@@ -431,13 +430,14 @@ async function fetchBrand(brand) {
       // Accessories: include all sizes, just needs to be in stock
       if (category === 'accessories') {
         const variant = p.variants?.find(v => v.available) || p.variants?.[0];
+        const onSale = variant?.compare_at_price && parseFloat(variant.compare_at_price) > parseFloat(variant.price);
         products.push({
           id: `${brand.id}-${p.id}`,
           brand: brand.name, brandId: brand.id,
           name: p.title, price: formatPrice(variant?.price),
           image: hiRes(p.images?.[0]?.src),
           link: `${brand.url}/products/${p.handle}`,
-          category, sizeFiltered: false,
+          category, sizeFiltered: false, onSale,
         });
         continue;
       }
@@ -450,13 +450,14 @@ async function fetchBrand(brand) {
         });
         if (!shoeMatch) continue;
         const variant = p.variants?.find(v => v.available && (v.title || '').replace(/[^0-9.]/g, '') === USER_SHOE_SIZE) || p.variants?.[0];
+        const onSale = variant?.compare_at_price && parseFloat(variant.compare_at_price) > parseFloat(variant.price);
         products.push({
           id: `${brand.id}-${p.id}`,
           brand: brand.name, brandId: brand.id,
           name: p.title, price: formatPrice(variant?.price),
           image: hiRes(p.images?.[0]?.src),
           link: `${brand.url}/products/${p.handle}`,
-          category, sizeFiltered: true,
+          category, sizeFiltered: true, onSale,
         });
         continue;
       }
@@ -471,13 +472,14 @@ async function fetchBrand(brand) {
         const t = (v.title || '').toUpperCase();
         return (t === USER_SIZE || t.includes(`/ ${USER_SIZE}`) || t.startsWith(`${USER_SIZE} /`) || t.startsWith(`${USER_SIZE}/`)) && v.available;
       }) || p.variants?.[0];
+      const onSale = variant?.compare_at_price && parseFloat(variant.compare_at_price) > parseFloat(variant.price);
       products.push({
         id: `${brand.id}-${p.id}`,
         brand: brand.name, brandId: brand.id,
         name: p.title, price: formatPrice(variant?.price),
         image: hiRes(p.images?.[0]?.src),
         link: `${brand.url}/products/${p.handle}`,
-        category, sizeFiltered: true,
+        category, sizeFiltered: true, onSale,
       });
     }
     return products;
@@ -500,6 +502,7 @@ async function loadAll() {
 function getFilteredProducts(view) {
   if (view === 'saved') return allProducts.filter(p => savedIds.has(p.id));
   if (view === 'all') return allProducts.filter(p => !hiddenIds.has(p.id));
+  if (view === 'other') return allProducts.filter(p => !hiddenIds.has(p.id) && p.category === 'other');
   return allProducts.filter(p => !hiddenIds.has(p.id) && p.category === view);
 }
 
@@ -540,7 +543,7 @@ function render() {
         <div class="card-body">
           <div class="card-brand">${p.brand}</div>
           <div class="card-name">${p.name}</div>
-          <div class="card-price">${p.price}</div>
+          <div class="card-price ${p.onSale ? 'on-sale' : ''}">${p.price}</div>
         </div>
       </a>
     </div>`;
