@@ -195,8 +195,9 @@
     text-overflow: ellipsis;
   }
 
-  .card-price { font-size: 11px; color: var(--muted); }
-  .card-price.on-sale { color: #9B3A2A; }
+  .card-price { font-size: 11px; color: var(--muted); display: flex; align-items: baseline; gap: 5px; }
+  .card-price.on-sale .sale-price { color: #9B3A2A; }
+  .card-price .original-price { text-decoration: line-through; color: var(--muted); font-size: 10px; }
 
   /* CARD ACTIONS */
   .card-actions {
@@ -437,6 +438,7 @@ async function fetchBrand(brand) {
           id: `${brand.id}-${p.id}`,
           brand: brand.name, brandId: brand.id,
           name: p.title, price: formatPrice(variant?.price),
+          originalPrice: onSale ? formatPrice(variant.compare_at_price) : null,
           image: hiRes(p.images?.[0]?.src),
           link: `${brand.url}/products/${p.handle}`,
           category, sizeFiltered: false, onSale,
@@ -457,6 +459,7 @@ async function fetchBrand(brand) {
           id: `${brand.id}-${p.id}`,
           brand: brand.name, brandId: brand.id,
           name: p.title, price: formatPrice(variant?.price),
+          originalPrice: onSale ? formatPrice(variant.compare_at_price) : null,
           image: hiRes(p.images?.[0]?.src),
           link: `${brand.url}/products/${p.handle}`,
           category, sizeFiltered: true, onSale,
@@ -488,6 +491,7 @@ async function fetchBrand(brand) {
         id: `${brand.id}-${p.id}`,
         brand: brand.name, brandId: brand.id,
         name: p.title, price: formatPrice(variant?.price),
+        originalPrice: onSale ? formatPrice(variant.compare_at_price) : null,
         image: hiRes(p.images?.[0]?.src),
         link: `${brand.url}/products/${p.handle}`,
         category, sizeFiltered: true, onSale,
@@ -553,7 +557,10 @@ function render() {
       <div class="card-body">
         <div class="card-brand">${p.brand}</div>
         <div class="card-name">${p.name}</div>
-        <div class="card-price ${p.onSale ? 'on-sale' : ''}">${p.price}</div>
+        <div class="card-price ${p.onSale ? 'on-sale' : ''}">
+          <span class="${p.onSale ? 'sale-price' : ''}">${p.price}</span>
+          ${p.onSale ? `<span class="original-price">${p.originalPrice}</span>` : ''}
+        </div>
       </div>
     </div>`;
   }).join('');
