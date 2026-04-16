@@ -329,6 +329,7 @@
     <a href="#" data-view="outerwear">Outerwear</a>
     <a href="#" data-view="shoes">Shoes</a>
     <a href="#" data-view="accessories">Accessories</a>
+    <a href="#" data-view="home">Home</a>
     <a href="#" data-view="other">Other</a>
   </div>
 
@@ -362,8 +363,10 @@ const BRANDS = [
   { id: 'staud',     name: 'STAUD',            url: 'https://staud.clothing',        feed: true  },
   { id: 'cultgaia',  name: 'Cult Gaia',        url: 'https://cultgaia.com',          feed: true  },
   { id: 'byfar',     name: 'By Far',           url: 'https://byfar.com',             feed: true  },
-  { id: 'loeffler',  name: 'Loeffler Randall',  url: 'https://www.loefflerrandall.com', feed: true  },
-  { id: 'cos',       name: 'COS',              url: 'https://www.cos.com',           feed: false },
+  { id: 'loeffler',  name: 'Loeffler Randall',  url: 'https://www.loefflerrandall.com', feed: true        },
+  { id: 'heath',     name: 'Heath Ceramics',    url: 'https://www.heathceramics.com',   feed: true, home: true },
+  { id: 'bfgf',      name: 'BFGF',             url: 'https://www.bfgf-shop.com',       feed: false, home: true },
+  { id: 'cos',       name: 'COS',              url: 'https://www.cos.com',             feed: false },
   { id: 'kooples',   name: 'The Kooples',      url: 'https://www.thekooples.com',    feed: false },
   { id: 'vince',     name: 'Vince',            url: 'https://www.vince.com',         feed: false },
   { id: 'maje',      name: 'Maje',             url: 'https://us.maje.com',           feed: false },
@@ -376,6 +379,7 @@ const CATEGORY_MAP = {
   outerwear:   ['jacket','coat','blazer','overshirt','parka','anorak','windbreaker','vest','fleece','bomber','outerwear','cardigan','trench'],
   shoes:       ['shoe','shoes','sneaker','sneakers','boot','boots','loafer','loafers','sandal','sandals','slipper','footwear','trainer','heel','heels','mule','flat','flats','pump'],
   accessories: ['hat','cap','bag','tote','wallet','belt','scarf','beanie','glove','sock','socks','sunglasses','watch','accessory','accessories','keychain','bottle','jewelry','necklace','earring','bracelet','purse'],
+  home:        ['mug','cup','bowl','plate','platter','vase','pitcher','carafe','teapot','candle','ceramic','pottery','linen','throw','blanket','pillow','cushion','tray','cutting board','knife','glass','tumbler','decor','frame','basket','towel','napkin','tablecloth','placemat','lamp','shade','storage','jar','crock','pan','dish'],
 };
 
 function guessCategory(title, type) {
@@ -420,8 +424,28 @@ async function fetchBrand(brand) {
     const data = await res.json();
     const products = [];
     for (const p of (data.products || [])) {
-      // Gender filter: skip anything that looks women's-specific
       const productText = ((p.title || '') + ' ' + (p.product_type || '') + ' ' + (p.tags || []).join(' ')).toLowerCase();
+
+      // Home brands: skip gender/size filters, just show in-stock items
+      if (brand.home) {
+        const inStock = p.variants?.some(v => v.available);
+        if (!inStock) continue;
+        const variant = p.variants?.find(v => v.available) || p.variants?.[0];
+        const onSale = variant?.compare_at_price && parseFloat(variant.compare_at_price) > parseFloat(variant.price);
+        const category = guessCategory(p.title, p.product_type) === 'other' ? 'home' : guessCategory(p.title, p.product_type);
+        products.push({
+          id: `${brand.id}-${p.id}`,
+          brand: brand.name, brandId: brand.id,
+          name: p.title, price: formatPrice(variant?.price),
+          originalPrice: onSale ? formatPrice(variant.compare_at_price) : null,
+          image: hiRes(p.images?.[0]?.src),
+          link: `${brand.url}/products/${p.handle}`,
+          category: 'home', sizeFiltered: false, onSale,
+        });
+        continue;
+      }
+
+      // Gender filter: skip anything that looks men's-specific
       if (MENS_KEYWORDS.some(w => productText.includes(w))) continue;
       if (productText.includes('linen')) continue;
 
